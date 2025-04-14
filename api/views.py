@@ -12,7 +12,12 @@ from .serializers import UserSerializer
 
 from .models import Post
 from .serializers import PostSerializer
-
+from rest_framework import status, generics, permissions
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from django.shortcuts import get_object_or_404
+from .models import Post, Like, Comment
+from .serializers import LikeSerializer, CommentSerializer
 
 User = get_user_model() # Get the custom User model
 
@@ -111,3 +116,41 @@ class PostDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     # You might want to add more specific permissions later, e.g., only allow post author to update/delete.
     # For MVP, IsAuthenticatedOrReadOnly is sufficient for basic protection.
+    
+    
+class PostLikeView(APIView):
+    """
+    Like or unlike a post.
+    - POST: Like a post (if not already liked).
+    """
+    permission_classes = [permissions.IsAuthenticated] # Only authenticated users can like
+
+    def post(self, request, pk): # 'pk' here is for post_id
+        post = get_object_or_404(Post, pk=pk)
+        user = request.user
+
+        # Check if the user has already liked the post
+        if Like.objects.filter(user=user, post=post).exists():
+            return Response({'message': 'You have already liked this post.'}, status=status.HTTP_200_OK) # Or 208 Already Reported
+
+        like = Like.objects.create(user=user, post=post)
+        serializer = LikeSerializer(like) # Serialize the newly created like (optional, for response data)
+        return Response({'message': 'Post liked'}, status=status.HTTP_201_CREATED)
+
+
+class PostCommentView(generics.CreateAPIView):
+    """
+    Create a comment on a post.
+    - POST: Create a new comment on a post (requires authentication).
+    """
+    queryset = Comment.objects.all() # Although we are overriding perform_create, queryset is needed by CreateAPIView
+    serializer_class = CommentSerializer
+    permission_classes = [permissions.IsAuthenticated] # Only authenticated users can comment
+
+    def perform_create(self, serializer):
+        """
+        Associate the current user and post with the newly created comment.
+        """
+        post_pk = self.kwargs['pk'] # Get post_id from URL path parameter 'pk'
+        post = get_object_or_404(Post, pk=post_pk)
+        serializer.save(user=self.request.user, post=post) # Set user and post for the commen
