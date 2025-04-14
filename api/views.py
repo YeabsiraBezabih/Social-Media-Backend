@@ -10,6 +10,10 @@ from rest_framework import generics, permissions
 from .models import User
 from .serializers import UserSerializer
 
+from .models import Post
+from .serializers import PostSerializer
+
+
 User = get_user_model() # Get the custom User model
 
 class UserRegistrationView(APIView):
@@ -76,3 +80,34 @@ class UserProfileView(generics.RetrieveUpdateAPIView):
         Perform update action. For now, just save. You can add custom logic here if needed.
         """
         serializer.save()
+        
+class PostListView(generics.ListCreateAPIView):
+    """
+    List all posts (for now, could be modified for feeds later) & create a new post.
+    - GET: List all posts.
+    - POST: Create a new post (requires authentication).
+    """
+    queryset = Post.objects.all()
+    serializer_class = PostSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly] # Allow read for all, create for authenticated users
+
+    def perform_create(self, serializer):
+        """
+        Associate the current user with the newly created post.
+        """
+        serializer.save(user=self.request.user) # Set the user to the current authenticated user
+
+
+class PostDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    Retrieve, update, or delete a specific post.
+    - GET: Retrieve a post by post_id (pk).
+    - PUT/PATCH: Update a post by post_id (pk) (requires authentication).
+    - DELETE: Delete a post by post_id (pk) (requires authentication).
+    """
+    queryset = Post.objects.all()
+    serializer_class = PostSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly] # Allow read for all, update/delete for authenticated users
+
+    # You might want to add more specific permissions later, e.g., only allow post author to update/delete.
+    # For MVP, IsAuthenticatedOrReadOnly is sufficient for basic protection.
