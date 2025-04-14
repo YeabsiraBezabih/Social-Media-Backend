@@ -6,6 +6,9 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.contrib.auth import authenticate
 from .serializers import UserSerializer
 from django.contrib.auth import get_user_model
+from rest_framework import generics, permissions
+from .models import User
+from .serializers import UserSerializer
 
 User = get_user_model() # Get the custom User model
 
@@ -52,3 +55,24 @@ class UserLogoutView(APIView):
                 return Response({'error': 'Refresh token is required'}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({'error': 'Invalid refresh token or logout failed'}, status=status.HTTP_400_BAD_REQUEST)
+class UserProfileView(generics.RetrieveUpdateAPIView):
+    """
+    Retrieve and update user profile.
+    - GET: Retrieve user profile by user_id (pk).
+    - PUT/PATCH: Update user profile by user_id (pk).
+    """
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly] # Allow read for all, update for authenticated users
+
+    def get_object(self):
+        """
+        Override get_object to retrieve user based on user_id from URL.
+        """
+        return self.queryset.get(pk=self.kwargs['pk']) # 'pk' comes from URL path parameter ':user_id'
+
+    def perform_update(self, serializer):
+        """
+        Perform update action. For now, just save. You can add custom logic here if needed.
+        """
+        serializer.save()
