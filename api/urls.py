@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import UserRegistrationView, UserLoginView, UserLogoutView, UserProfileView , PostListView, PostDetailView , PostLikeView, PostCommentView 
+from .views import UserRegistrationView, UserLoginView, UserLogoutView, UserProfileView , PostListView, PostDetailView , PostLikeView, PostCommentView ,FollowUserView, UnfollowUserView
 
 urlpatterns = [
     path('auth/register/', UserRegistrationView.as_view(), name='register'),
@@ -12,4 +12,6 @@ urlpatterns = [
     path('posts/<int:pk>/', PostDetailView.as_view(), name='post-detail'),
     path('posts/<int:pk>/like/', PostLikeView.as_view(), name='post-like'), # URL for liking a post
     path('posts/<int:pk>/comment/', PostCommentView.as_view(), name='post-comment'), 
+     path('users/<int:pk>/follow/', FollowUserView.as_view(), name='user-follow'), # URL for following a user
+    path('users/<int:pk>/unfollow/', UnfollowUserView.as_view(), name='user-unfollow'),
 ]

@@ -18,6 +18,11 @@ from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from .models import Post, Like, Comment
 from .serializers import LikeSerializer, CommentSerializer
+from rest_framework import status, permissions
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from django.shortcuts import get_object_or_404
+from .models import User, Follow
 
 User = get_user_model() # Get the custom User model
 
@@ -154,3 +159,49 @@ class PostCommentView(generics.CreateAPIView):
         post_pk = self.kwargs['pk'] # Get post_id from URL path parameter 'pk'
         post = get_object_or_404(Post, pk=post_pk)
         serializer.save(user=self.request.user, post=post) # Set user and post for the commen
+        
+        
+
+class FollowUserView(APIView):
+    """
+    Follow a user.
+    - POST: Follow a user by user_id (requires authentication).
+    """
+    permission_classes = [permissions.IsAuthenticated] # Only authenticated users can follow
+
+    def post(self, request, pk): # 'pk' here is for following_user_id (user to be followed)
+        user_to_follow = get_object_or_404(User, pk=pk) # User to be followed
+        follower = request.user # Current authenticated user is the follower
+
+        if follower == user_to_follow:
+            return Response({'error': 'You cannot follow yourself.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Check if already following
+        if Follow.objects.filter(follower=follower, following=user_to_follow).exists():
+            return Response({'message': f'You are already following {user_to_follow.username}.'}, status=status.HTTP_200_OK) # Or 208 Already Reported
+
+        follow_relation = Follow.objects.create(follower=follower, following=user_to_follow)
+        return Response({'message': f'You are now following {user_to_follow.username}.'}, status=status.HTTP_201_CREATED)
+
+
+class UnfollowUserView(APIView):
+    """
+    Unfollow a user.
+    - POST: Unfollow a user by user_id (requires authentication).
+    """
+    permission_classes = [permissions.IsAuthenticated] # Only authenticated users can unfollow
+
+    def post(self, request, pk): # 'pk' here is for unfollowing_user_id (user to be unfollowed)
+        user_to_unfollow = get_object_or_404(User, pk=pk) # User to be unfollowed
+        follower = request.user # Current authenticated user is the follower
+
+        if follower == user_to_unfollow:
+            return Response({'error': 'You cannot unfollow yourself.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Check if actually following before unfollowing
+        follow_relation = Follow.objects.filter(follower=follower, following=user_to_unfollow).first()
+        if follow_relation:
+            follow_relation.delete()
+            return Response({'message': f'You have unfollowed {user_to_unfollow.username}.'}, status=status.HTTP_200_OK)
+        else:
+            return Response({'message': f'You are not following {user_to_unfollow.username}.'}, status=status.HTTP_200_OK) # Or 400 Bad Request if you want to indicate an error
